@@ -3,7 +3,7 @@ module btn_in
 	(input logic clk, btn_in,
 	 output logic btn_out);
 
-localparam HOLD = 1;
+localparam HOLD = 10000000;
 
 logic sync1, sync2;
 logic temp;
