@@ -1,24 +1,24 @@
 `timescale 1ns / 1ps
-module uart
+module uart_led_control
 	(input logic 	usrclk_n, usrclk_p,
 	 input logic 	rx_data_in,
 	 output logic 	[7:0] led);
 
 logic clk;
-logic rx_sync;
-logic rx_temp;
-logic [7:0] data_reg;
-logic [2:0] data_reg_bit;
-logic [2:0] rx_data_out;
-logic rx_ready;
-logic led_ready;
+logic [7:0] data_reg;					// data register
+logic [7:0] data_reg_ptr;				// data register pointer					
+// uart signals 
+logic rx_ready;							// rx ready signal
+logic rx_temp, rx_sync;					// temprary and synchronized rxs
+logic [7:0] rx_data_out;				// output data from uart
 
+// clocking module
 clk_wiz_0 clk_module(
 	.clk_in1_n(usrclk_n),
 	.clk_in1_p(usrclk_p),
 	.clk_out1(clk));
-
-uart_rx #(.CLKS_PER_BIT(87)) uart_rx (
+// uart module
+uart_rx #(.CLKS_PER_BIT(868)) uart_rx (
 	.i_Clock(clk),
 	.i_Rx_Serial(rx_sync),
 	.o_Rx_DV(rx_ready),
@@ -31,22 +31,18 @@ always @(posedge clk)
 		rx_sync <= rx_temp;
 	end
 
-always @(posedge clk)
-	if (rx_ready) data_reg_bit <= rx_data_out;
+assign data_reg_ptr = rx_data_out;		// assign data register point 
 
 always @(posedge clk)
-	led_ready <= rx_ready;
-
-always @(posedge clk) 
-	if (led_ready) data_reg[data_reg_bit] <= ~data_reg[data_reg_bit];
+	if (rx_ready) data_reg[data_reg_ptr[2:0]] <= ~data_reg[data_reg_ptr[2:0]];
 
 assign led = data_reg;
 
 initial begin
 	data_reg = 0;
-	data_reg_bit = 0;
-	rx_sync = 0;
+	data_reg_ptr = 0;
 	rx_temp = 0;
-	led_ready = 0;
+	rx_sync = 0;
+	rx_ready = 0;
 end	
 endmodule
