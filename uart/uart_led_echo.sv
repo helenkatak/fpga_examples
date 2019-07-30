@@ -51,9 +51,4 @@ always @(posedge clk)
 
 assign tx_data_in = data_reg;	
 	
-always @(posedge clk)
-	if (tx_done) echoed_value = tx_data_out;
-
-
-
 endmodule
