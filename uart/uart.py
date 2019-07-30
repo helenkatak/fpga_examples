@@ -11,15 +11,14 @@ ser.open()
 
 while True:
 	try: 
-		data_to_send = input('Enter a number from 0 to 7 => ')
+		data_to_send = input('Enter a number x between 0 and 7 => ')
 		data_to_send = int(data_to_send)
-		if 0 <= data_to_send < 8 :  
+		if (0 <= data_to_send) and (data_to_send < 8) :  
 			data_byte = (data_to_send).to_bytes(1, byteorder="little")
 			ser.write(data_byte)
-			time.sleep(1)
+			time.sleep(0.1)
 		else :
-			print('The number is not in the right range.')
-			break
+			raise ValueError('x should not be less than 8!')
 			
 	except KeyboardInterrupt:
 		break
