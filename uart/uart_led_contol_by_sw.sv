@@ -26,22 +26,17 @@ sw_pulse_detect sw_pulse_module (
 uart_tx #(.CLKS_PER_BIT(87)) uart_tx(
 	.i_Clock(clk),
 	.i_Tx_DV(sw_tick),
-	.i_Tx_Byte(slide_sw),
+	.i_Tx_Byte(slide_sw),				// 8 bits from [7:0] slide_sw
 	.o_Tx_Active(tx_active),
-	.o_Tx_Serial(tx_data_out),
+	.o_Tx_Serial(tx_data_out),			// 1 byte output
 	.o_Tx_Done(tx_done));
 // uart rx module
 uart_rx #(.CLKS_PER_BIT(87)) uart_rx(
 	.i_Clock(clk),
-	.i_Rx_Serial(tx_data_out),
-	.o_Rx_Byte(rx_data_out),
+	.i_Rx_Serial(tx_data_out),			// 1 byte input
+	.o_Rx_Byte(rx_data_out),			// 8 bits to [7:0] rx_data_out
 	.o_Rx_DV(rx_ready));
 
 assign led = rx_data_out;
-
-// assign tx_data_in = slide_sw;
-
-// always @(posedge clk)
-// 	if (sw_tick) tx_data_in <= slide_sw;
 
 endmodule
