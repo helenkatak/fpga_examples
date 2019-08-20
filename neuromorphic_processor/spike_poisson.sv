@@ -51,10 +51,10 @@ always @(posedge clk)
 
 always @(posedge clk) 
 	if (spike) poisson_out <= {activity_d, 4'b0100};
-	else poisson_out <= {activity_d, dt_lev_new};
+	else if (poisson_en) poisson_out <= {activity_d, dt_lev_new};
 
 always @(posedge clk)
 	if (reset) spike <= 0;
-	else if (poisson_en) spike <= (poisson_spiking_cond & dt_cond) ? 1 : 0;
+	else spike <= (poisson_spiking_cond & dt_cond) ? 1'b1 : 0;
 
 endmodule
