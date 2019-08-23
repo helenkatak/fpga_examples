@@ -1,21 +1,23 @@
 `timescale 1ns / 1ps
 module lfsr #(parameter LFSR_LEN = 16)
 	(input logic clk, reset,
-	 input logic en,
+	 input logic lfsr_en,
 	 output logic [LFSR_LEN-1:0] lfsr_out);
 
 logic [LFSR_LEN-1:0] lfsr_reg; 				// lfsr register
 
 always @(posedge clk) begin
-	if (reset | ~en) begin
-		lfsr_reg[0] <= 1;
+	if (reset | lfsr_en == 1'b0) begin
+		lfsr_reg[0] <= 1'b1;
 		for (int i=1; i<LFSR_LEN; i++) begin
-			lfsr_reg[i] <= 0;
+			lfsr_reg[i] <= 1'b0;
 		end
 	end
-	else if (en) begin
+	else if (lfsr_en == 1'b1) begin
 		lfsr_reg[0] <= lfsr_reg[1]^lfsr_reg[2]^lfsr_reg[4]^lfsr_reg[15];
-		for (int i=1; i<LFSR_LEN; i++) lfsr_reg[i] <= lfsr_reg[i-1];
+		for (int i=1; i<LFSR_LEN; i++) begin
+			lfsr_reg[i] <= lfsr_reg[i-1];
+		end
 	end
 end
 
