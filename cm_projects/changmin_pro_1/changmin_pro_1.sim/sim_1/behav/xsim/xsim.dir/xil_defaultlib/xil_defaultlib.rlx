@@ -1,0 +1,8 @@
+0.6
+2019.1
+May 24 2019
+15:06:07
+C:/Users/KJS/VIVADO_WS/changmin_pro_1/changmin_pro_1.sim/sim_1/behav/xsim/glbl.v,1558713910,verilog,,,,glbl,,,,,,,,
+C:/Users/KJS/VIVADO_WS/changmin_pro_1/changmin_pro_1.srcs/sources_1/ip/clk_wiz_0/clk_wiz_0.v,1567409962,verilog,,,,clk_wiz_0,,,../../../../changmin_pro_1.srcs/sources_1/ip/clk_wiz_0,,,,,
+C:/Users/KJS/VIVADO_WS/changmin_pro_1/changmin_pro_1.srcs/sources_1/ip/clk_wiz_0/clk_wiz_0_clk_wiz.v,1567409962,verilog,,C:/Users/KJS/VIVADO_WS/changmin_pro_1/changmin_pro_1.srcs/sources_1/ip/clk_wiz_0/clk_wiz_0.v,,clk_wiz_0_clk_wiz,,,../../../../changmin_pro_1.srcs/sources_1/ip/clk_wiz_0,,,,,
+C:/Users/KJS/VIVADO_WS/changmin_pro_1/changmin_pro_1.srcs/sources_1/new/led_test.sv,1567410856,systemVerilog,,,,led_test,,,../../../../changmin_pro_1.srcs/sources_1/ip/clk_wiz_0,,,,,
