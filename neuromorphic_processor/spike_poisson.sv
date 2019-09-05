@@ -18,8 +18,8 @@ logic spike;
 logic [NEUR_MEM_LEN-1:0] data_reg; 			
 
 // Splite activity and refractory state from neuron input 
-assign activity = (lfsr_out == 0) ? 3'b000 : ((poisson_en) ? poisson_in[NEUR_MEM_LEN-1:REFRACTORY_LEN] : 3'b000);	
-assign dt_lev = (lfsr_out == 0) ? 3'b000 : ((poisson_en) ? poisson_in[REFRACTORY_LEN-1:0] : 2'b00);
+assign activity = (poisson_en) ? poisson_in[NEUR_MEM_LEN-1:REFRACTORY_LEN] : 3'b000;	
+assign dt_lev = (poisson_en) ? poisson_in[REFRACTORY_LEN-1:0] : 2'b00;
 
 lfsr #(.LFSR_LEN(LFSR_LEN)) lfsr_module (
 	.clk(clk),
