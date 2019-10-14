@@ -1,48 +1,78 @@
 `timescale 1ns / 1ps
 module neuron_module #(parameter NEURON_NO=256, ACTIVITY_LEN=9, REFRACTORY_LEN=4, TD_WIDTH=16, REFRACTORY_PER=4)
-	(input logic clk, reset, sys_en,
-	 input logic [1:0] ext_req,
-	 input logic [$clog2(NEURON_NO)-1:0] ext_rd_addr, ext_wr_addr,
-	 input logic [NEURON_LEN-1:0] ext_neur_data_in, 
-	 output logic [NEURON_LEN-1:0] ext_neur_data_out,
-	 output logic [TD_WIDTH+$clog2(NEURON_NO)-1:0] spiking_neur_addr,
-	 output logic spike);
+	(input logic 	clk, reset, sys_en,
+	 input logic 	[1:0] ext_req,
+	 input logic 	[$clog2(NEURON_NO)-1:0] ext_rd_addr, ext_wr_addr,
+	 input logic 	[NEURON_LEN-1:0] ext_din, 
+	 output logic 	[NEURON_LEN-1:0] ext_dout,
+	 output logic 	[TD_WIDTH+$clog2(NEURON_NO)-1:0] spike_addr,
+	 output logic 	spike);
 
 localparam NEURON_LEN = ACTIVITY_LEN + REFRACTORY_LEN;
 localparam DT = 100000;																// 1 ms/ 10 ns					
 
 logic [NEURON_LEN-1:0] neuron_ram [NEURON_NO-1:0];									// Neuron memory
-logic [NEURON_LEN-1:0] data_out_reg;	
-logic [$clog2(DT)-1:0] dt_count;													// Counts clock
-logic dt_tick;								 										// Generates tick every 1ms
-logic [TD_WIDTH-1:0] time_stamp;													// Time stamp
-logic int_rd_en, int_wr_en, scroll_on; 												// Internal enable signals
-logic [$clog2(NEURON_NO)-1:0] int_rd_addr, int_wr_addr, wr_addr_tmp1, wr_addr_tmp2;	// Internal read and write addresses
-logic [NEURON_LEN-1:0] scroll_data_in, scroll_data_out;								// Internal input and output data 
-logic [TD_WIDTH+$clog2(NEURON_NO)-1:0] int_neur_data_out;						
+logic [NEURON_LEN-1:0] dout_reg;	
+
+struct {
+logic [$clog2(DT)-1:0] count;			// Counts clock
+logic en, tick;	
+logic [TD_WIDTH-1:0] ts;				// Time stamp
+} dt;				 					// Generates tick every 1ms
+
+struct {												
+logic en;								// Internal enable signals
+logic [$clog2(NEURON_NO)-1:0] addr;		// Internal read and write addresses
+logic [TD_WIDTH+$clog2(NEURON_NO)-1:0] dout;	
+logic [NEURON_LEN-1:0] dreg; 			// Internal input and output data 
+} int_rd;					
+
+struct {
+logic en, en_tmp1, en_tmp2;
+logic [$clog2(NEURON_NO)-1:0] addr, addr_tmp1, addr_tmp2;
+logic [NEURON_LEN-1:0] dreg;		
+} int_wr;
+
+// logic scroll_on;
 
 // ------------------------ Internal process --------------------------------
-	// dT counter activates dt_tick every 1 ms
+	// dT counter activates dt.tick every 1 ms
+	
+assign dt.tick = (dt.count==DT-1);
+
 always @(posedge clk)							
-	if (reset) dt_count <= '0;				
-	else if (sys_en) dt_count <= (dt_count < DT) ? dt_count + 1'b1 : ((ext_req > 0) ? dt_count : 0);
-assign dt_tick = (dt_count == DT);
+	if (reset) begin
+		dt.en 		<= 0;
+		dt.count 	<= 0;	
+	end			
+	else if (sys_en) dt.en 		<= 1'b1;
+	else if (dt.en)	 dt.count 	<= (dt.tick) ? 0 : dt.count + 1'b1;
 
-	// Internal signals
-assign int_rd_en = (reset) ? '0 : (0 < dt_count & dt_count < NEURON_NO + 1);
-assign int_wr_en = (reset) ? '0 : (3 < dt_count & dt_count < NEURON_NO + 4);
-assign scroll_on = (int_rd_en | int_wr_en) & (ext_req > 0);		
+	// Internal signal enable 
+always @(posedge clk)
+	if (reset) int_rd.en 			<= 0;
+	else if (dt.tick) begin
+		if (~ext_req) int_rd.en 	<= 1'b1;
+		else if (ext_req) int_rd.en <= 0;
+	end
+	else if (~ext_req) int_rd.en 	<= (int_rd.addr==NEURON_NO-1) ? 0 : int_rd.en; 
 
-	// Internal read address
-always @(posedge clk)													
-	if (reset) int_rd_addr <= '0;									
-	else if (int_rd_en) int_rd_addr <= (dt_tick) ? 0 : ((ext_req > 0) ? int_rd_addr :int_rd_addr + 1'b1);
+always @(posedge clk)
+	if (reset) int_rd.addr <= '0;
+	else if (~dt.tick) begin
+		if (ext_req) int_rd.addr 		<= int_rd.addr;
+		else if (~ext_req) int_rd.addr 	<= (int_rd.addr==NEURON_NO-1) ? int_rd.addr : int_rd.addr + 1'b1;
+	end
+	else begin
+		if (ext_req) int_rd.addr 		<= int_rd.addr;
+		else if (~ext_req) int_rd.addr 	<= int_rd.addr + 1'b1;
+	end
 
-	// Internal read	
+	// Internal read
 always @(posedge clk)		
-	if (reset) scroll_data_in <= '0;						
-	else if (int_rd_en) scroll_data_in <= neuron_ram[int_rd_addr];		
-	else if (dt_count > NEURON_NO) scroll_data_in <= 0;
+	if (reset) int_rd.dreg 						<= '0;						
+	else if (int_rd.en) int_rd.dreg 			<= neuron_ram[int_rd.addr];		
+	else if (dt.count > NEURON_NO) int_rd.dreg 	<= 0;
 
 	// Spike generation using Poisson spike generation module
 spike_poisson #(								
@@ -52,43 +82,47 @@ spike_poisson #(
 	spike_module (
 	.clk(clk),
 	.reset(reset),
-	.poisson_en(sys_en&ext_req==0),
-	.poisson_in(scroll_data_in),
-	.poisson_out(scroll_data_out),
+	.poisson_en(~ext_req),
+	.poisson_in(int_rd.dreg),
+	.poisson_out(int_wr.dreg),
 	.spike_out(spike));
 
 	// Internal write address
 always @(posedge clk) begin
-	wr_addr_tmp1 <= int_rd_addr;
-	wr_addr_tmp2 <= wr_addr_tmp1;
-	int_wr_addr	 <= wr_addr_tmp2;
+	int_wr.addr_tmp1 	<= int_rd.addr;
+	int_wr.addr_tmp2 	<= int_wr.addr_tmp1;
+	int_wr.addr	 		<= int_wr.addr_tmp2;
+	int_wr.en_tmp1 		<= int_rd.en;
+	int_wr.en_tmp2 		<= int_wr.en_tmp1;
+	int_wr.en	 		<= int_wr.en_tmp2;
 end
 
 // ----------------------- External and Internal write ----------------------
 always @(posedge clk)
-	if (ext_req == 2) neuron_ram[ext_wr_addr] <= ext_neur_data_in;
-	else if (int_wr_en) neuron_ram[int_wr_addr] <= scroll_data_out;
+	if (int_wr.en) neuron_ram[int_wr.addr] 			<= int_wr.dreg;
+	else if (ext_req == 2) neuron_ram[ext_wr_addr] 	<= ext_din;
+
 
 // ------------------------ External process --------------------------------
 	//  External read (External signals: "ext_req = 1" enables read signal, and "ext_req = 2" enables write signal)	
 always @(posedge clk)
-	if (reset) data_out_reg <= '0;
-	else if (ext_req == 1) data_out_reg <= neuron_ram[ext_rd_addr];
-assign ext_neur_data_out = data_out_reg;
+	if (reset) dout_reg 			<= '0;
+	else if (ext_req == 1) dout_reg <= neuron_ram[ext_rd_addr];
+assign ext_dout = dout_reg;
 
-	// time stamping spiking information
+// time stamping spiking information
 always @(posedge clk)
-	if (reset) time_stamp <= '0;
-	else if (sys_en & dt_tick) time_stamp <= time_stamp + 1'b1;
+	if (reset) dt.ts 		<= '0;
+	else if (dt.tick) dt.ts <= dt.ts + 1'b1;
 
 always @(posedge clk)
-	if (reset) int_neur_data_out <= '0;
+	if (reset) int_rd.dout 					<= '0;
 	else if (spike) begin
-		if (int_wr_addr==3'b00) int_neur_data_out <= {time_stamp, int_wr_addr};
-		if (int_wr_addr!=3'b00) int_neur_data_out <= {time_stamp, int_wr_addr+3'b01};
+		if (int_wr.addr==3'b00) int_rd.dout <= {dt.ts, int_wr.addr};
+		if (int_wr.addr!=3'b00) int_rd.dout <= {dt.ts, int_wr.addr+3'b01};
 	end
-	else int_neur_data_out <= '0;
-assign spiking_neur_addr = int_neur_data_out;
+	else int_rd.dout <= '0;
+assign spike_addr = int_rd.dout;
 
 initial begin
 	for (int i=0; i<NEURON_NO; i++) begin
@@ -97,14 +131,20 @@ initial begin
 		else if (i==NEURON_NO-1) neuron_ram[i] = 13'h644;	// 6 = ?? Hz
 		else neuron_ram[i] = 0;
 	end
-	dt_count = '0;
-	time_stamp = '0;
-	data_out_reg = '0;
-	int_neur_data_out = '0;
-	int_rd_addr = '0;
-	int_wr_addr = '0;
-	wr_addr_tmp1 = '0;
-	wr_addr_tmp2 = '0;
-	scroll_data_in = '0;
+	dout_reg = '0;		
+	dt.en = 0;
+	dt.count = '0;
+	dt.ts = '0;
+	int_rd.en = 0;
+	int_rd.addr = NEURON_NO-1;
+	int_rd.dout = '0;
+	int_wr.en = 0;
+	int_wr.addr = '0;
+	int_wr.addr_tmp1 = '0;
+	int_wr.addr_tmp2 = '0;
+	int_wr.en_tmp1 = 0;
+	int_wr.en_tmp2 = 0;
+	int_rd.dreg = '0;
+	int_wr.dreg = '0;
 end
 endmodule

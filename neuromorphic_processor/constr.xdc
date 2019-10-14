@@ -4,8 +4,8 @@ set_property IOSTANDARD LVDS [get_ports usrclk_p]
 set_property PACKAGE_PIN AL34 [get_ports usrclk_n]
 set_property IOSTANDARD LVDS [get_ports usrclk_n]
 
-set_property PACKAGE_PIN AU33 [get_ports rx_din]
-set_property IOSTANDARD LVCMOS18 [get_ports rx_din]
+set_property PACKAGE_PIN AU33 [get_ports rx_ser]
+set_property IOSTANDARD LVCMOS18 [get_ports rx_ser]
 set_property PACKAGE_PIN AU36 [get_ports tx_dout]
 set_property IOSTANDARD LVCMOS18 [get_ports tx_dout]
 
