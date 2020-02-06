@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 module lfsr #(parameter REG_LEN = 16)
 	(input logic clk, reset,
-	 input logic en,
+	 input logic lfsr_en,
 	 output logic [REG_LEN-1:0] lfsr_out);
 
 genvar i;

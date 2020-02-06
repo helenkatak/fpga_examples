@@ -11,52 +11,45 @@ localparam ACTIVITY_LEN = 9;
 localparam REFRACTORY_LEN = 4;
 localparam REFRACTORY_PER = 4;
 localparam NEURON_LEN = ACTIVITY_LEN + REFRACTORY_LEN;
-localparam TD_WIDTH = 16;
+localparam TS_WIDTH = 16;
 localparam FIFO_MEM_NO = 8;
 localparam UART_DATA_LEN = 8;
 localparam UART_CYC=3;
+localparam OUT_W = 8;
 
-logic clk;
+logic sys_en, clk;
+
 clk_wiz_0 clock_module(
 	.clk_in1_p(usrclk_p),
 	.clk_in1_n(usrclk_n),
 	.clk_out1(clk));
 
-logic sys_en;
+struct {logic [UART_DATA_LEN-1:0] data;
+		logic dv;
+		} rx;
 
-struct {
-logic [1:0] req;								// External request signal
-logic [$clog2(NEURON_NO)-1:0] rd_addr, wr_addr;	// External read and write address of neuron memory
-logic [NEURON_LEN-1:0] din, dout;				// Externaly input data into neuron memory
-} ext;
+struct {logic dv; 
+		logic active;
+		logic done;
+		} tx;
 
-struct {
-logic out;										// Write signal for FIFO module	
-logic [TD_WIDTH+$clog2(NEURON_NO)-1:0] addr;	// Input data for FIFO module
-} spike;
+struct {logic [1:0] req;								// External request signal
+		logic [$clog2(NEURON_NO)-1:0] rd_addr, wr_addr;	// External read and write address of neuron memory
+		logic [NEURON_LEN-1:0] din, dout;				// Externaly input data into neuron memory
+		} ext;
 
-struct {
-logic [TD_WIDTH+$clog2(NEURON_NO)-1:0] dout;		
-logic full, empty, ext_rd;
-} fifo;
-													
-system_ctrl #(.TD_WIDTH(TD_WIDTH), .NEURON_NO(NEURON_NO), .UART_DATA_LEN(UART_DATA_LEN), .UART_CYC(UART_CYC), .NEURON_LEN(NEURON_LEN)) system_ctrl(							
-	.clk(clk),									
-	.reset(reset),
-	.rx_ser(rx_din),
-	.led(led),
-	.sys_en(sys_en),
-	.fifo_rd(fifo.ext_rd),
-	.ext_req(ext.req),
-	.ext_rd_addr(ext.rd_addr),
-	.ext_wr_addr(ext.wr_addr),
-	.ext_dout(ext.dout),
-	.ext_din(ext.din),
-	.spike(spike.out),
-	.fifo_dout(fifo.dout),
-	.tx_dout(tx_dout));
+struct {logic signal;										// Write signal for FIFO module	
+		logic [TS_WIDTH+$clog2(NEURON_NO)-1:0] addr;	// Input data for FIFO module
+		} spike;
 
-neuron_module #(.NEURON_NO(NEURON_NO), .ACTIVITY_LEN(ACTIVITY_LEN), .REFRACTORY_LEN(REFRACTORY_LEN), .TD_WIDTH(TD_WIDTH),.REFRACTORY_PER(REFRACTORY_PER)) neuron_module (
+struct {logic [TS_WIDTH+$clog2(NEURON_NO)-1:0] dout;		
+		logic full, empty, ext_rd;
+		} fifo;
+
+logic ser_rdy;
+logic [OUT_W-1:0] serialized_data;
+
+neuron_module #(.NEURON_NO(NEURON_NO), .ACTIVITY_LEN(ACTIVITY_LEN), .REFRACTORY_LEN(REFRACTORY_LEN), .TS_WIDTH(TS_WIDTH),.REFRACTORY_PER(REFRACTORY_PER)) neuron_module (
 	.clk(clk),
 	.reset(reset),
 	.sys_en(sys_en),
@@ -66,15 +59,55 @@ neuron_module #(.NEURON_NO(NEURON_NO), .ACTIVITY_LEN(ACTIVITY_LEN), .REFRACTORY_
 	.ext_din(ext.din),
 	.ext_dout(ext.dout),
 	.spike_addr(spike.addr),
-	.spike(spike.out));
+	.spike(spike.signal));
 
-fifo #(.FIFO_MEM_LEN(TD_WIDTH+$clog2(NEURON_NO)), .FIFO_MEM_NO(FIFO_MEM_NO)) fifo_module (
+fifo #(.FIFO_MEM_LEN(TS_WIDTH+$clog2(NEURON_NO)), .FIFO_MEM_NO(FIFO_MEM_NO)) fifo_module (
 	.clk(clk),
 	.reset(reset),
-	.fifo_rd_en(fifo.ext_rd), 							// Reading happens when it is required
-	.spike(spike.out),						// Writing happens when system is enabled
+	.fifo_rd_en(ser_rdy),//fifo.ext_rd), 		// Reading happens when it is required
+	.spike(spike.signal),						// Writing happens when system is enabled
 	.full(fifo.full),
 	.empty(fifo.empty),
 	.fifo_din(spike.addr),
 	.fifo_dout(fifo.dout));
+
+uart_rx #(.CLKS_PER_BIT(87)) uart_rx(	// Note: If there is a weak blinking issue, check clk/bits 
+	.i_Clock(clk),
+	.i_Rx_Serial(rx_din),				// serial input from PC
+	.o_Rx_Byte(rx.data),				// 1 byte data recieved
+	.o_Rx_DV(rx.dv));					// tells when the entire 1 byte is recieved
+
+serializer #(.IN_W(TS_WIDTH+$clog2(NEURON_NO)), .OUT_W(8)) output_ser (
+	.clk(clk),
+	.reset(reset),
+	.fifo_empty(fifo.empty),
+	.tx_done(tx.done),
+	.tx_dv(tx.dv),
+	.data_in(fifo.dout),
+	.ser_rdy(ser_rdy),
+	.data_out(serialized_data));
+
+uart_tx #(.CLKS_PER_BIT(87)) uart_tx(
+	.i_Clock(clk),						
+	.i_Tx_DV(tx.dv),					// Start signal sending data to PC
+	.i_Tx_Byte(serialized_data),		// 8 bit data to send
+	.o_Tx_Active(tx.active),				
+	.o_Tx_Serial(tx_dout),				// PC recieves 1 byte data
+	.o_Tx_Done(tx.done));			// reduce tx.done signal into half clks
+
+system_ctrl #(.TS_WIDTH(TS_WIDTH), .NEURON_NO(NEURON_NO), .UART_DATA_LEN(UART_DATA_LEN), .UART_CYC(UART_CYC), .NEURON_LEN(NEURON_LEN)) system_ctrl(							
+	.clk(clk),									
+	.reset(reset),
+	.rx_dv(rx.dv),
+	.rx_data(rx.data),
+	.sys_en(sys_en),
+	.fifo_rd(fifo.ext_rd),
+	.ext_req(ext.req),
+	.ext_rd_addr(ext.rd_addr),
+	.ext_wr_addr(ext.wr_addr),
+	.ext_dout(ext.dout),
+	.ext_din(ext.din),
+	.spike(spike.signal),
+	.fifo_dout(fifo.dout));
+
 endmodule

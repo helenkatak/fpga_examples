@@ -8,52 +8,53 @@ import threading
 from PIL import Image
 
 class EventPlotter(object):
-	def __init__(self, ser):
-		self.app = pg.mkQApp()
-		self.proc = mp.QtProcess()
-		self.rpg = self.proc._import('pyqtgraph')				
-		self.plotwin = self.rpg.GraphicsWindow(title="Monitor")
-		self.plotwin.resize(800,500)
-		self.plotwin.setWindowTitle('Activity Monitor')
-		self.p1 = self.plotwin.addPlot(title="Neuron spikes vs. time")
-		self.p1.setLabel('left', 'Neuron Number')
-		self.p1.setLabel('bottom', 'Time [s]')
-		self.p1.showGrid(x=True, y=True, alpha=0.5)
-		self.spikes_curve = self.p1.plot(pen=None, symbol="o", symbolPen=None, symbolBrush='w', symbolSize=3)   
+    def __init__(self, ser):
+        self.app = pg.mkQApp()
+        self.proc = mp.QtProcess()
+        self.rpg = self.proc._import('pyqtgraph')				
+        self.plotwin = self.rpg.GraphicsWindow(title="Monitor")
+        self.plotwin.resize(800,500)
+        self.plotwin.setWindowTitle('Activity Monitor')
+        self.p1 = self.plotwin.addPlot(title="Neuron spikes vs. time")
+        self.p1.setLabel('left', 'Neuron Number')
+        self.p1.setLabel('bottom', 'Time [s]')
+        self.p1.showGrid(x=True, y=True, alpha=0.5)
+        self.spikes_curve = self.p1.plot(pen=None, symbol="o", symbolPen=None, symbolBrush='w', symbolSize=3)   
 		# self.app.exit(self.app.exec_()) # not sure if this is necessary	
-		self.on_screen = 200 # Number of events on the screen
-		self.all_time_stamps = np.zeros(self.on_screen)
-		self.all_addresses = np.zeros(self.on_screen, dtype=int)		
-		self.ser = ser
-		self.old_stamp = 0
+        self.on_screen = 300 # Number of events on the screen
+        self.all_time_stamps = np.zeros(self.on_screen)
+        self.all_addresses = np.zeros(self.on_screen, dtype=int)		
+        self.ser = ser
+        self.old_stamp = 0
 
-	def decode_events(self, byte_data):
-		time_stamps = []
-		addresses = []
-		event_nr = int(len(byte_data)/3)
-		
-		if event_nr > 0:
-			for e in range(event_nr):
-				event = byte_data[e*3:e*3+3]
-				addresses.append(event[2])
-				new_stamp = int.from_bytes(event[0:2], byteorder='big')
-				time_stamps.append(new_stamp)
-				
-		return time_stamps, addresses
+    def decode_events(self, byte_data):
+        time_stamps = []
+        addresses = []
+        event_nr = int(len(byte_data)/3)
 
-	def ReadEvents(self):
-		try:
-			event_data = self.ser.read(200)
-			time_stamps, addresses = self.decode_events(event_data)
-			dn = len(time_stamps)
-			if dn > 0:
-				self.all_time_stamps = np.roll(self.all_time_stamps, -dn)
-				self.all_addresses = np.roll(self.all_addresses, -dn)
-				self.all_time_stamps[-dn:] = np.array(time_stamps)
-				self.all_addresses[-dn:] = np.array(addresses)				
-				self.spikes_curve.setData(x=self.all_time_stamps, y=self.all_addresses, _callSync='off')
-		except:
-			None
+        if event_nr > 0:
+            for e in range(event_nr):
+                event = byte_data[e*3:e*3+3] 
+                addresses.append(event[2])
+                new_stamp = int.from_bytes(event[0:2], byteorder='big')                   
+                time_stamps.append(new_stamp)
+                print(new_stamp, event[2])
+        
+        return time_stamps, addresses
+    
+    def ReadEvents(self):
+        try:
+            event_data = self.ser.read(300)
+            time_stamps, addresses = self.decode_events(event_data)
+            dn = len(time_stamps)
+            if dn > 0:
+                self.all_time_stamps = np.roll(self.all_time_stamps, -dn)
+                self.all_addresses = np.roll(self.all_addresses, -dn)
+                self.all_time_stamps[-dn:] = np.array(time_stamps)
+                self.all_addresses[-dn:] = np.array(addresses)				
+                self.spikes_curve.setData(x=self.all_time_stamps, y=self.all_addresses, _callSync='off')            
+        except:
+            None
                        
 # Seial port initialization 
 ser = serial.Serial()
@@ -69,74 +70,49 @@ EventPlotter = EventPlotter(ser=ser)
 def cmd_in():  
     global script_on, spikes_on, EventPlotter     
     while True:
-        cmd_raw = input("Enter a command quit/show/clear/pause/read/write => ").split()
-        cmd_line = cmd_raw[0] 
-        if (len(cmd_raw) == 2):                 
-            cmd_param = int(cmd_raw[1])
-        elif (len(cmd_raw) == 4):
-            cmd_addr = int(cmd_raw[1])
-            cmd_activity = int(cmd_raw[2])       # string
-            cmd_value = int(cmd_raw[3])
-        else:
-            cmd_param = 0   
-            cmd_addr = 0
-            cmd_value = 0
-            cmd_activity = 0
-                          
-        if (cmd_line == "show"):
-            ser.write(bytes.fromhex('01'))              # Decimal 01
+        cmd_raw = input("Enter a command => ")#.split()
+             
+        if (cmd_raw == "r"):
+            ser.write(bytes.fromhex('01'))                          # enable ext read
             time.sleep(0.001)
+           # EventPlotter.ReadEvents()
             try:
-                EventPlotter.on_screen = cmd_param           
+                EventPlotter.on_screen = 100           
                 EventPlotter.all_time_stamps = np.zeros(EventPlotter.on_screen)
                 EventPlotter.all_addresses = np.zeros(EventPlotter.on_screen, dtype=int)
             except:
                 print("Invalid number after show command.\n")
-             
-        elif (cmd_line == "quit"):    # quit the python code
-            ser.write(bytes.fromhex('00'))              # Decimal 11
-            script_on = False
-            ser.close()
-            break
-        
-        elif (cmd_line == "read"):
-            ser.write(bytes.fromhex('03'))                          # enable ext read
-            ser.write(cmd_param.to_bytes(1, byteorder="little")[1]) # Read address
-            data_bytes = ser.read(2)                                # 13 bit
-            print(data_bytes)        
-
-        elif (cmd_line == "write"):           
-            ser.write(bytes.fromhex('02'))                              # enable ext write
-            ser.write(cmd_addr.to_bytes(1, byteorder="little"))      # send address
-            ser.write(cmd_activity.to_bytes(2, byteorder="little")[1])  # send 1st 1byte of activity
-            ser.write(cmd_activity.to_bytes(2, byteorder="little")[0])  # send 2nd 1byte of activity
-            ser.write(cmd_value.to_bytes(1, byteorder="little")) 
-                            
-        elif (cmd_line == "stop"): # Stop FIFO reading
-            ser.write(bytes.fromhex('04'))
-            spikes_on = False
-         
-               
-        elif (cmd_line == "go"):
-            if (spikes_on == False):
-                ser.write(bytes.fromhex('01'))
-                spikes_on = True
-            EventPlotter.on_screen = cmd_param
-            
-        elif (cmd_line == "clear"):
-            #ser.write(bytes.fromhex('05'))
+                
+        elif (cmd_raw == "clear"):
             EventPlotter.all_time_stamps = np.zeros(EventPlotter.on_screen)
             EventPlotter.all_addresses = np.zeros(EventPlotter.on_screen, dtype = int)
-            
+ 
+        elif (cmd_raw == "quit"):
+            script_on = False
+            ser.close()
+            break   
 
-# thread_img = threading.Thread(target=run_img)
-# thread_img.daemon = False
-# thread_img.start()
+       # elif (cmd_raw == "write"):           
+            #ser.write(bytes.fromhex('02'))                              # enable ext write
+            #ser.write(cmd_addr.to_bytes(1, byteorder="little"))      # send address
+            #ser.write(cmd_activity.to_bytes(2, byteorder="little")[1])  # send 1st 1byte of activity
+            #ser.write(cmd_activity.to_bytes(2, byteorder="little")[0])  # send 2nd 1byte of activity
+            #ser.write(cmd_value.to_bytes(1, byteorder="little")) 
+                            
+        elif (cmd_raw == "stop"): # Stop FIFO reading
+            ser.write(bytes.fromhex('04'))
+            spikes_on = False
+                       
+       # elif (cmd_raw == "go"):
+        #    if (spikes_on == False):
+        #        ser.write(bytes.fromhex('01'))
+        #        spikes_on = True
+           # EventPlotter.on_screen = cmd_param           
 
 def run_plot():
 	global script_on, EventPlotter, spikes_on
 	while script_on == True:
-		time.sleep(100e-3)
+		time.sleep(0.001)
 		EventPlotter.ReadEvents()
 	EventPlotter.proc.close()
 
@@ -145,3 +121,4 @@ thread_plot.daemon = False
 thread_plot.start()
 
 cmd_in()
+            
