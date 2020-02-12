@@ -1,16 +1,17 @@
 `timescale 1ns / 1ps
 module system_ctrl #(parameter TS_WIDTH=16, NEURON_NO=256, UART_DATA_LEN=8, UART_CYC=3, NEURON_LEN= 13)
 	(input logic 	clk, reset,
-	 input logic 	rx_dv, rx_data,	 
-	 output logic 	sys_en,
-	 output logic 	fifo_rd,
-	 // output logic 	[UART_DATA_LEN-1:0] led,
-	 output logic 	[1:0] ext_req,
-	 output logic	[$clog2(NEURON_NO)-1:0] ext_rd_addr, ext_wr_addr,
-	 input logic    [NEURON_LEN-1:0] ext_dout, 
-	 output logic   [NEURON_LEN-1:0] ext_din,
+	 input logic 	rx_dv, 
+	 input logic 	rx_data,
 	 input logic 	spike,
-	 input logic 	[TS_WIDTH+$clog2(NEURON_NO)-1:0] fifo_dout);
+	 input logic 	[TS_WIDTH+$clog2(NEURON_NO)-1:0] fifo_dout,	 	 
+	 // output logic 	[UART_DATA_LEN-1:0] led,	 
+	 input logic    [NEURON_LEN-1:0] ext_dout, 
+	 output logic   [NEURON_LEN-1:0] ext_din,	 
+	 output logic	[$clog2(NEURON_NO)-1:0] ext_rd_addr, ext_wr_addr,
+	 output logic 	sys_en,
+	 output logic 	[1:0] ext_req,
+	 output logic 	fifo_rd);
 
 struct {logic en;
 		logic [$clog2(NEURON_NO)-1:0] addr;		
@@ -33,6 +34,7 @@ always @(posedge clk)
 	else if (rx_dv) begin								// ready to receive data from PC
 		if (rx_data == 1) begin
 			sys_en <= 1;	
+			ext_req <= 0;
 		end
 		else if (ext.en) begin
 		 	if (ext.rd_en) begin		

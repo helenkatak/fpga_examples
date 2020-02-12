@@ -44,7 +44,7 @@ logic [wMAX-1:0] bin_lut[2**wA_BIN-1:0];			// bin LUT
 logic [wMAX-1:0] exp_lut[2**wA_IND-1:0];			// exp LUT
 logic [wA_BIN-1:0] bin_addr;						// bin LUT address
 logic [wA_IND-1:0] exp_addr;						// exp LUT address
-logic [wMAX-1:0] bin_val, exp_val;		// bin and exp LUT values
+logic [wMAX-1:0] bin_val, exp_val;					// bin and exp LUT values
 
 (*use_dsp = "yes"*) logic [2*wMAX-1:0] result_upsc, result_upsc_d, result;		// results after bin and exp LUT value mupltiplication
 

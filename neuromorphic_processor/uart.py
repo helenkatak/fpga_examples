@@ -38,7 +38,6 @@ class EventPlotter(object):
                 addresses.append(event[2])
                 new_stamp = int.from_bytes(event[0:2], byteorder='big')                   
                 time_stamps.append(new_stamp)
-                print(new_stamp, event[2])
         
         return time_stamps, addresses
     
@@ -102,12 +101,6 @@ def cmd_in():
         elif (cmd_raw == "stop"): # Stop FIFO reading
             ser.write(bytes.fromhex('04'))
             spikes_on = False
-                       
-       # elif (cmd_raw == "go"):
-        #    if (spikes_on == False):
-        #        ser.write(bytes.fromhex('01'))
-        #        spikes_on = True
-           # EventPlotter.on_screen = cmd_param           
 
 def run_plot():
 	global script_on, EventPlotter, spikes_on
