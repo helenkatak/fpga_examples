@@ -1,15 +1,15 @@
 `timescale 1ns / 1ps
-module amplitude #(parameter NEURON_NO=2**8, AMPL_LEN=24, MU_LEN=32) 
+module amplitude #(parameter NEURON_NO=2**8, AMPL_WID=20, MU_LEN=32) 
 	(input logic clk, reset,
 	 input logic wr_en,
 	 input logic sp_in,
 	 input logic sp_out,
 	 input logic [MU_LEN-1:0] mu_in,
 	 input logic [$clog2(NEURON_NO)-1:0] wr_addr,
-	 output logic [AMPL_LEN-1:0] ampl_out);
+	 output logic [AMPL_WID-1:0] ampl_out);
 
 logic [$clog2(NEURON_NO)-1:0] wr_addr_d, wr_addr_dd;
-logic [AMPL_LEN-1:0] ampl_ram [NEURON_NO-1:0];			// amplitude ram
+logic [AMPL_WID-1:0] ampl_ram [NEURON_NO-1:0];			// amplitude ram
 logic wr_en_d;
 
 always @(posedge clk)									// writing enable signal

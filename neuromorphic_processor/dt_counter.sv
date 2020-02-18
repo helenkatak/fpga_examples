@@ -1,9 +1,9 @@
 `timescale 1ns / 1ps
-module dt_counter #(parameter DT=1000, TS_WIDTH=16)
+module dt_counter #(parameter DT=1000, TS_WID=20)
 	(input logic clk, reset, sys_en,
 	 output logic [$clog2(DT)-1:0] dt_count,		// dt counts clock
 	 output logic dt_tick,							// dt enable signals
-	 output logic [TS_WIDTH-1:0] dt_ts);			// time stamp														
+	 output logic [TS_WID-1:0] dt_ts);			// time stamp														
 
 logic dt_en;												
 // dT counter activates dt.tick every 1 ms 
