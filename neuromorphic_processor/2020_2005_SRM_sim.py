@@ -31,8 +31,8 @@ def SRM_ei(u1, u2, u3, w, sp_vec, uth):  #
 
 ## Neuron simulation:
 tm = 40e-3
-tse = 10e-3  # should be smaller than tm
-tref = tm#40e-3
+tse = 10e-3  
+tref = tm #40e-3
 uref = -2e-3
 
 w = 0.01
@@ -49,7 +49,6 @@ u_3 = np.array([0])
 
 u_mem = np.array([0])
 sp_ = np.array([0])
-
 
 
 for t in range(1500):   

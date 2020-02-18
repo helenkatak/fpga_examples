@@ -28,12 +28,8 @@ always @(posedge clk) begin
 end
 
 always @(posedge clk) 
-	if (reset) begin
-		mu_upsc <= 0;
-	end
-	else begin 
-		mu_upsc <= ampl_val * exp_func_val;
-	end
+	if (reset) mu_upsc <= 0;
+	else mu_upsc <= ampl_val * exp_func_val;
 
 assign mu_in = (sp_in) ? w + mu_upsc[MU_WID+T_FIX_WID-1:T_FIX_WID-1] : mu_upsc[MU_WID+T_FIX_WID-1:T_FIX_WID-1]; // Neuron membrain potential
 

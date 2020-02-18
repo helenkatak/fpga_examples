@@ -20,7 +20,7 @@ logic [T_FIX_WID-1:0] scal_val, temp_val;
 
 // time stamping for EFA module information
 always @(posedge clk)
-	if (t_fix_wr_en) t_fix_ram[t_fix_wr_addr] <= (sp_out) ? 0 : ((sp_in) ? 1 : t_fix_ram[t_fix_wr_addr]+1);
+	if (t_fix_wr_en) t_fix_ram[t_fix_wr_addr] <= (sp_in) ? 1 : t_fix_ram[t_fix_wr_addr] + 1;
 
 assign t_fix_reg = (sp_in) ? 0 : t_fix_ram[t_fix_wr_addr]; 		// time_fix value
 

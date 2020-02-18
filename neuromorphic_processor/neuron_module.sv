@@ -153,7 +153,7 @@ initial begin
 	end
 	for (int i=0; i<NEURON_NO; i++) begin
 		if (i==0) spike_in_ram[i] = 1;
-		else if (i==255) spike_in_ram[i] = 0;
+		else if (i==255) spike_in_ram[i] = 1;
 		else spike_in_ram[i] = 0;
 	end
 
