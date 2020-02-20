@@ -11,7 +11,7 @@ localparam ACTIVITY_LEN = 9;
 localparam REFRACTORY_LEN = 4;
 localparam REFRACTORY_PER = 4;
 localparam NEURON_LEN = ACTIVITY_LEN + REFRACTORY_LEN;
-localparam TS_WIDTH = 16;
+localparam TS_WID = 20;
 localparam FIFO_MEM_NO = 8;
 localparam UART_DATA_LEN = 8;
 localparam UART_CYC=3;
@@ -39,10 +39,10 @@ struct {logic [1:0] req;								// External request signal
 		} ext;
 
 struct {logic signal;										// Write signal for FIFO module	
-		logic [TS_WIDTH+$clog2(NEURON_NO)-1:0] addr;	// Input data for FIFO module
+		logic [TS_WID+$clog2(NEURON_NO)-1:0] addr;	// Input data for FIFO module
 		} spike;
 
-struct {logic [TS_WIDTH+$clog2(NEURON_NO)-1:0] dout;		
+struct {logic [TS_WID+$clog2(NEURON_NO)-1:0] dout;		
 		logic full, empty, ext_rd;
 		} fifo;
 
@@ -55,7 +55,9 @@ uart_rx #(.CLKS_PER_BIT(87)) uart_rx(	// Note: If there is a weak blinking issue
 	.o_Rx_Byte(rx.data),				// 1 byte data recieved
 	.o_Rx_DV(rx.dv));					// tells when the entire 1 byte is recieved
 
-system_ctrl #(.TS_WIDTH(TS_WIDTH), .NEURON_NO(NEURON_NO), .UART_DATA_LEN(UART_DATA_LEN), .UART_CYC(UART_CYC), .NEURON_LEN(NEURON_LEN)) system_ctrl(							
+system_ctrl #(.TS_WID(TS_WID), .NEURON_NO(NEURON_NO), 
+			  .UART_DATA_LEN(UART_DATA_LEN), .UART_CYC(UART_CYC), 
+			  .NEURON_LEN(NEURON_LEN)) system_ctrl(							
 	.clk(clk),									
 	.reset(reset),
 	.rx_dv(rx.dv),
@@ -70,7 +72,7 @@ system_ctrl #(.TS_WIDTH(TS_WIDTH), .NEURON_NO(NEURON_NO), .UART_DATA_LEN(UART_DA
 	.spike(spike.signal),
 	.fifo_dout(fifo.dout));
 
-neuron_module #(.NEURON_NO(NEURON_NO), .ACTIVITY_LEN(ACTIVITY_LEN), .REFRACTORY_LEN(REFRACTORY_LEN), .TS_WIDTH(TS_WIDTH),.REFRACTORY_PER(REFRACTORY_PER)) neuron_module (
+neuron_module #(.NEURON_NO(NEURON_NO), .TS_WID(TS_WID)) neuron_module (
 	.clk(clk),
 	.reset(reset),
 	.sys_en(sys_en),
@@ -82,7 +84,7 @@ neuron_module #(.NEURON_NO(NEURON_NO), .ACTIVITY_LEN(ACTIVITY_LEN), .REFRACTORY_
 	.ts_sp_addr(spike.addr),
 	.sp_out(spike.signal));
 
-fifo #(.FIFO_MEM_LEN(TS_WIDTH+$clog2(NEURON_NO)), .FIFO_MEM_NO(FIFO_MEM_NO)) fifo_module (
+fifo #(.FIFO_MEM_LEN(TS_WID+$clog2(NEURON_NO)), .FIFO_MEM_NO(FIFO_MEM_NO)) fifo_module (
 	.clk(clk),
 	.reset(reset),
 	.fifo_rd_en(ser_rdy), //fifo.ext_rd), 		// Reading happens when it is required
@@ -93,7 +95,7 @@ fifo #(.FIFO_MEM_LEN(TS_WIDTH+$clog2(NEURON_NO)), .FIFO_MEM_NO(FIFO_MEM_NO)) fif
 	.fifo_dout(fifo.dout));
 
 
-serializer #(.IN_W(TS_WIDTH+$clog2(NEURON_NO)), .OUT_W(8)) output_ser (
+serializer #(.IN_W(TS_WID+$clog2(NEURON_NO)), .OUT_W(8)) output_ser (
 	.clk(clk),
 	.reset(reset),
 	.fifo_empty(fifo.empty),

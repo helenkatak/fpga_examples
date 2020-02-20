@@ -1,10 +1,10 @@
 `timescale 1ns / 1ps
-module system_ctrl #(parameter TS_WIDTH=16, NEURON_NO=256, UART_DATA_LEN=8, UART_CYC=3, NEURON_LEN= 13)
+module system_ctrl #(parameter TS_WID=16, NEURON_NO=256, UART_DATA_LEN=8, UART_CYC=3, NEURON_LEN= 13)
 	(input logic 	clk, reset,
 	 input logic 	rx_dv, 
 	 input logic 	rx_data,
 	 input logic 	spike,
-	 input logic 	[TS_WIDTH+$clog2(NEURON_NO)-1:0] fifo_dout,	 	 
+	 input logic 	[TS_WID+$clog2(NEURON_NO)-1:0] fifo_dout,	 	 
 	 // output logic 	[UART_DATA_LEN-1:0] led,	 
 	 input logic    [NEURON_LEN-1:0] ext_dout, 
 	 output logic   [NEURON_LEN-1:0] ext_din,	 

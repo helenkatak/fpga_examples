@@ -1,6 +1,5 @@
 `timescale 1ns / 1ps
-module neuron_module #(parameter NEURON_NO=2**8, ACTIVITY_LEN=9, REFRACTORY_LEN=4, 
-								 TS_WID=20, REFRACTORY_PER=4)
+module neuron_module #(parameter NEURON_NO=2**8, TS_WID=20)
 	(input logic 	clk, reset, 
 	 input logic 	sys_en,
 	 input logic 	[1:0] ext_req,
@@ -10,15 +9,14 @@ module neuron_module #(parameter NEURON_NO=2**8, ACTIVITY_LEN=9, REFRACTORY_LEN=
 	 output logic 	[TS_WID+$clog2(NEURON_NO)-1:0] ts_sp_addr,
 	 output logic 	sp_out);
 
-localparam DT = 1000;											// 1 ms/ 10 ns
-localparam THR = 5000;
-localparam NEURON_LEN = ACTIVITY_LEN + REFRACTORY_LEN;																				
+localparam DT = 10000;						// 1 ms/ 10 ns
+localparam THR_VAL = 5242;					//FXnum(0.005, FXfamily(20,2))
+localparam NEURON_LEN = 13;																				
 localparam MU_WID = TS_WID;
 localparam AMPL_WID = TS_WID;
 localparam SCAL_ADDR_LEN = 8;
 localparam TEMP_ADDR_LEN = 8;
 localparam T_FIX_WID = SCAL_ADDR_LEN + TEMP_ADDR_LEN;
-
 
 // struct {logic [NEURON_LEN-1:0] dreg;} int_rd;		
 // struct {logic [NEURON_LEN-1:0] dreg;} int_wr;
@@ -29,25 +27,21 @@ localparam T_FIX_WID = SCAL_ADDR_LEN + TEMP_ADDR_LEN;
 // logic [NEURON_LEN-1:0] neuron_ram [NEURON_NO-1:0];				// Neuron memory
 logic [NEURON_LEN-1:0] dout_reg;	
 
-logic [NEURON_NO-1:0] spike_in_ram;								// spike_in 
+logic [NEURON_NO-1:0] spike_in_ram;			// spike_in 
 logic sp_in, sp_in_d, sp_in_dd, sp_in_ddd;
 logic sp_in_mu, sp_in_ampl;
-
-logic ref_wr_en;
-logic [REFRACTORY_LEN-1:0] ref_ram [NEURON_NO-1:0];				// refractory period ram
-logic [REFRACTORY_LEN-1:0] ref_per_reg;	
-logic [$clog2(NEURON_NO)-1:0] ref_rd_addr, ref_wr_addr;
 
 logic t_fix_wr_en;
 logic [$clog2(NEURON_NO)-1:0] t_fix_wr_addr;
 
 logic update_en;
-logic [T_FIX_WID-1:0] ts_efa1_out, ts_efa1_out_reg; 
-logic [$clog2(NEURON_NO)-1:0] ampl_wr_addr;
-logic [AMPL_WID-1:0] ampl_val;
+logic [T_FIX_WID-1:0] ts_efa_a_out, thr_ts_efa_out, ts_efa_b_out; 
 
-logic [MU_WID-1:0] mu_in;
-logic [MU_WID+REFRACTORY_LEN-1:0] mu_out;
+logic [$clog2(NEURON_NO)-1:0] ampl_wr_addr;
+logic [AMPL_WID-1:0] ampl_a_val, ampl_b_val;
+
+logic [MU_WID-1:0] ker_a, ker_b;
+logic [MU_WID-1:0] mu_out;
 
 logic [TS_WID-1:0] dt_ts;
 logic [MU_WID-1:0] thr;
@@ -55,6 +49,7 @@ logic sp_out;
 logic [$clog2(NEURON_NO)-1:0] sp_out_wr_addr;
 
 logic [MU_WID-1:0] mu;
+
 
 dt_counter #(.DT(DT), .TS_WID(TS_WID))
 	dt_counter_module (
@@ -75,10 +70,59 @@ int_signal #(.NEURON_NO(NEURON_NO))
 	.t_fix_wr_en(t_fix_wr_en),
 	.t_fix_wr_addr(t_fix_wr_addr),
 	.update_en(update_en),
-	.ref_wr_en(ref_wr_en),
-	.ref_wr_addr(ref_wr_addr),
 	.ampl_wr_addr(ampl_wr_addr),
-	.sp_out_wr_addr(sp_out_wr_addr));
+	.sp_out_wr_addr(sp_out_wr_addr),
+	.t_thr_rd_addr(t_thr_rd_addr));
+
+logic ts_efa_en_d, ts_efa_en_dd;
+
+logic [T_FIX_WID-1:0] t_fix_ram [NEURON_NO-1:0];		 		// time fix ram	
+logic [T_FIX_WID-1:0] t_fix_reg;
+
+always @(posedge clk) begin
+	ts_efa_en_d <= update_en;
+	ts_efa_en_dd <= ts_efa_en_d;
+end
+ 
+// time stamping for EFA module information
+always @(posedge clk)
+	if (t_fix_wr_en) t_fix_ram[t_fix_wr_addr] <= (sp_in) ? 1 : t_fix_ram[t_fix_wr_addr]+1;
+
+always @(posedge clk)
+	if (ts_efa_en_dd) t_fix_ram[sp_out_wr_addr] <= (sp_out) ? 1 : t_fix_ram[sp_out_wr_addr];	
+
+assign t_fix_reg =  (t_fix_wr_en) ? t_fix_ram[t_fix_wr_addr] : 0; 		// time_fix value
+
+ts_efa_A #(.SCAL_ADDR_LEN(SCAL_ADDR_LEN), .TEMP_ADDR_LEN(TEMP_ADDR_LEN)) 
+	ts_efa_A_module (
+	.clk(clk),
+	.reset(reset),
+	.ts_efa_out_en(update_en),
+	.t_fix_reg(t_fix_reg),
+	.ts_efa_a_out(ts_efa_a_out),
+	.t_thr_reg(t_thr_reg),					// extra input for threshold
+	.thr_ts_efa_out(thr_ts_efa_out));		// extra output for threshold		
+
+ts_efa_B #(.SCAL_ADDR_LEN(SCAL_ADDR_LEN), .TEMP_ADDR_LEN(TEMP_ADDR_LEN)) 
+	ts_efa_B_module (
+	.clk(clk),
+	.reset(reset),
+	.ts_efa_out_en(update_en),
+	.t_fix_reg(t_fix_reg),
+	.ts_efa_b_out(ts_efa_b_out));
+
+amplitude #(.NEURON_NO(NEURON_NO), .AMPL_WID(AMPL_WID), .MU_LEN(MU_WID)) 
+	amplitude_module (
+	.clk(clk),
+	.reset(reset),
+	.wr_en(update_en),
+	.wr_addr(ampl_wr_addr),
+	.sp_in(sp_in_ampl),
+	.sp_out(sp_out),
+	.ker_a(ker_a),
+	.ker_b(ker_b),
+	.ampl_a_out(ampl_a_val),
+	.ampl_b_out(ampl_b_val));
 
 assign sp_in = (t_fix_wr_en) ? spike_in_ram[t_fix_wr_addr] : 0; // Spike input 
 
@@ -90,81 +134,64 @@ always @(posedge clk) begin
 end
 assign sp_in_mu = sp_in_ampl;
 
-ts_efa #(.SCAL_ADDR_LEN(SCAL_ADDR_LEN), .TEMP_ADDR_LEN(TEMP_ADDR_LEN), .NEURON_NO(NEURON_NO)) 
-	ts_efa1_module (
+logic [T_FIX_WID-1:0] t_thr_ram [NEURON_NO-1:0];				// amplitude ram
+logic [T_FIX_WID-1:0] t_thr_reg, t_thr_temp; 
+logic [$clog2(NEURON_NO)-1:0] t_thr_rd_addr;
+
+always @(posedge clk)
+	if (ts_efa_en_dd) t_thr_ram[sp_out_wr_addr] <= (sp_out) ? 1 : (t_thr_ram[sp_out_wr_addr]==0 ? 0 : t_thr_ram[sp_out_wr_addr]+1);
+
+assign t_thr_reg = (sp_out) ? 0 : t_thr_ram[t_fix_wr_addr]; 		// time_fix value
+assign t_thr_temp = t_thr_ram[t_thr_rd_addr];
+
+threshold #(.NEURON_NO(NEURON_NO), .THR_VAL(THR_VAL), .TS_WID(TS_WID), .T_FIX_WID(T_FIX_WID))
+	threshold_module (
 	.clk(clk),
 	.reset(reset),
-	.ts_efa_en(update_en),
-	.t_fix_wr_en(t_fix_wr_en),
-	.t_fix_wr_addr(t_fix_wr_addr),
-	.sp_in(sp_in),
-	.sp_out(sp_out),
-	.ts_efa_out(ts_efa1_out));	
+	.t_thr_temp(t_thr_temp),
+	.thr_ts_efa_out(thr_ts_efa_out),
+	.thr(thr));
 
-amplitude #(.NEURON_NO(NEURON_NO), .AMPL_WID(AMPL_WID), .MU_LEN(MU_WID)) 
-	amplitude_module (
-	.clk(clk),
-	.reset(reset),
-	.wr_en(update_en),
-	.sp_in(sp_in_ampl),
-	.sp_out(sp_out),
-	.mu_in(mu_in),
-	.wr_addr(ampl_wr_addr),
-	.ampl_out(ampl_val));
-
-assign ref_rd_addr = ampl_wr_addr;					
-
-always @(posedge clk)											// refractory writing 
-	if (ref_wr_en) ref_ram[ref_wr_addr] <= mu_out[REFRACTORY_LEN-1:0];
-assign ref_per_reg = ref_ram[ref_rd_addr];  					// refgractory period value
-
-
-assign ts_efa1_out_reg = ts_efa1_out;
-
-spike_srm #(
-	.MU_WID(MU_WID), 
-	.T_FIX_WID(T_FIX_WID),
-	.AMPL_WID(AMPL_WID),
-	.REFRACTORY_LEN(REFRACTORY_LEN), 
-	.REFRACTORY_PER(REFRACTORY_PER)) 
+spike_srm #(.TS_WID(TS_WID), .T_FIX_WID(T_FIX_WID)) 
 	spike_srm_module (
 	.clk(clk),
 	.reset(reset),	
 	.update_en(update_en),
-	.sp_in(sp_in_mu),
+	.ampl_a_val(ampl_a_val),
+	.ampl_b_val(ampl_b_val),
+	.exp_func_val_a(ts_efa_a_out),
+	.exp_func_val_b(ts_efa_b_out),
 	.thr(thr),
-	.ampl_val(ampl_val),
-	.exp_func_val(ts_efa1_out),
-	.ref_per_val(ref_per_reg),
-	.mu_in(mu_in),
+	.ker_a(ker_a),
+	.ker_b(ker_b),
 	.sp_out(sp_out),
-	.mu_out(mu_out));
+	.sp_in(sp_in_mu),
+	.mu_out(mu_out),
+	.srm_en_d(thr_en));
 
 always @(posedge clk)
 	if (reset) ts_sp_addr <= 0;
 	else ts_sp_addr <= (sp_out) ? {dt_ts, sp_out_wr_addr} : 0;
 
-always @(posedge clk)
- 	if (sp_out_wr_addr == 24) mu <= mu_in;
-
 initial begin
-	for (int i=0; i<NEURON_NO; i++) begin
-		ref_ram[i] = 4;   									// 1ms								
-	end
 	for (int i=0; i<NEURON_NO; i++) begin
 		if (i==0) spike_in_ram[i] = 1;
 		else if (i==255) spike_in_ram[i] = 1;
 		else spike_in_ram[i] = 0;
 	end
 
+	for (int i=0; i<NEURON_NO; i++) t_fix_ram[i] = 0;
+	for (int i=0; i<NEURON_NO; i++) t_thr_ram[i] = 0;
+
 	dout_reg = '0;		
-	thr = THR;
 	sp_in_d = '0;
 	sp_in_dd = '0;
 	sp_in_ddd = '0;
 	sp_in_ampl = '0;
 	ts_sp_addr = '0;
-	mu = '0;
+
+	ts_efa_en_d = '0;
+	ts_efa_en_dd = '0;
 end
 
 // always @(posedge clk)
