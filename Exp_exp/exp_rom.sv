@@ -34,7 +34,7 @@ clk_wiz_0 clock(
 
 logic [wTn-1:0] tn_d;								// tn stored at the input
 logic [wTd-1:0] td_d;								// td stored at the input
-(*ram_style = "block"*)logic [wREC-1:0] recip_lut[nREC-1:0];				// reciprocal LUT add ram_style for LUT in RAM
+(*ram_style = "block"*) logic [wREC-1:0] recip_lut[nREC-1:0];		// reciprocal LUT add ram_style for LUT in RAM
 logic [wREC-1:0] td_rec;							// reciprocal td
 logic [wTn-1:0] tn_d2;								// delayed tn
 (*use_dsp = "yes"*) logic [wREC+wTn-1:0] t_prelim, t_prelim_downsc, t_prelim_d;			// prelimenary t (tn*2^12/td)

@@ -2,6 +2,7 @@
 module ts_efa_B #(parameter SCAL_ADDR_LEN=8, TEMP_ADDR_LEN=8) 
 	(input logic clk, reset,
 	 input logic ts_efa_out_en,
+	 input logic sel,
 	 input logic [T_FIX_WID-1:0] t_fix_reg,
 	 output logic [T_FIX_WID-1:0] ts_efa_b_out);					// exponential function val
 
@@ -12,8 +13,7 @@ logic [T_FIX_WID-1:0] scal_lut[2**TEMP_ADDR_LEN-1:0];				// scaling LUT
 logic [SCAL_ADDR_LEN-1:0] scal_addr;							// scaling LUT address
 logic [TEMP_ADDR_LEN-1:0] temp_addr;							// template LUT address
 logic [T_FIX_WID-1:0] scal_val, temp_val;
-(*use_dsp = "yes"*) logic [2*(T_FIX_WID-1):0] result_upsc;
-(*use_dsp = "yes"*) logic [T_FIX_WID-1:0] result;	
+(*use_dsp = "yes"*) logic [2*(T_FIX_WID-1):0] result_upsc, result;	
 
 // initializing LUTs from memory files
 initial begin

@@ -16,7 +16,7 @@ struct {logic en;
 
 logic fifo_rd_en_d;
 logic spike_d;
-logic [FIFO_MEM_LEN-1:0] fifo_mem [2**FIFO_MEM_NO-1:0];	
+(*ram_style = "distributed"*) logic [FIFO_MEM_LEN-1:0] fifo_mem [2**FIFO_MEM_NO-1:0];	
 
 always @(posedge clk) 
 	spike_d <= spike;
