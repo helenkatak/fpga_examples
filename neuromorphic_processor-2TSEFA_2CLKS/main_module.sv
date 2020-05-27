@@ -23,7 +23,6 @@ localparam W_C = 1092;							// FXnum(0.01*0.04/(0.04-0.01)/0.05, FXfamily(20,1)
 
 logic clk1, clk2;
 
-
 clk_wiz_0 clock_module(
 	.clk_in1_p(USRCLK_P),
 	.clk_in1_n(USRCLK_N),
@@ -59,7 +58,7 @@ logic [TS_WID+$clog2(NEURON_NO)-1:0] spiking_n_addr;			// Input data for FIFO mo
 
 logic [NEURON_NO-1:0] spike_in_ram;							
 logic input_spike;
-assign input_spike = (en) & spike_in_ram[addr]; 	// Spike input 
+assign input_spike = (en) & spike_in_ram[n_addr]; 	// Spike input 
 
 // struct {logic [TS_WID+$clog2(NEURON_NO)-1:0] dout;		
 // 		logic full, empty, ext_rd;
@@ -132,8 +131,6 @@ neuron_module #(.NEURON_NO(NEURON_NO), .TS_WID(TS_WID)) neuron_module (
 initial begin
 	for (int i=0; i<NEURON_NO; i++) begin // spike_in_ram: just for simulation. It need to be replaced
 		if (i==0) spike_in_ram[i] = 1;
-		else if (i==5) spike_in_ram[i] = 1;
-		else if (i==255) spike_in_ram[i] = 1;
 		else spike_in_ram[i] = 0;
 	end
 	ext_req = '0;
@@ -141,9 +138,10 @@ initial begin
 	ram_sel = '0;
 	we = 0;
 	sys_en = 1;
-	ext_rd_addr = 0;
-	ext_wr_addr = 0;
-	ext_din = 0;
+	ext_rd_addr = '0;
+	ext_wr_addr = '0;
+	ext_din = '0;
+	clk1 = 0;
 end
 
 // fifo #(.FIFO_MEM_LEN(TS_WID+$clog2(NEURON_NO)), .FIFO_MEM_NO(FIFO_MEM_NO)) fifo_module (

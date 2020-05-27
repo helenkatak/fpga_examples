@@ -143,7 +143,7 @@ always @(posedge clk1) begin
  	t_thr_reg_5d <= t_thr_reg_4d;
  	t_thr_reg_6d <= t_thr_reg_5d;
  	t_thr_reg_7d <= t_thr_reg_6d;
- 	 	t_thr_reg_8d <= t_thr_reg_7d;
+ 	t_thr_reg_8d <= t_thr_reg_7d;
 end
 
 always @(posedge clk1) 									// t_thr_ram writing
@@ -224,13 +224,12 @@ initial begin
 	sp_in_8d = '0;
 	sp_in_9d = '0;
 
-	t_fix_ms_reg 	= '0;
 	t_fix_ms_reg_d  = '0;
 	ts_efa_m 		= '0;
 	ts_efa_s 		= '0;
 	ts_efa_thr 		= '0;
 
-	t_thr_reg 	 = '0;	
+
 	t_thr_reg_d  = '0;
 	t_thr_reg_dd = '0;
 	t_thr_reg_3d = '0;

@@ -61,8 +61,6 @@ assign input_spike = (en) & spike_in_ram[n_addr]; 	// Spike input
 // logic ser_rdy;
 // logic [OUT_W-1:0] serialized_data;
 
-
-
 // uart_rx #(.CLKS_PER_BIT(87)) uart_rx(	// Note: If there is a weak blinking issue, check clk/bits 
 // 	.i_Clock(clk),
 // 	.i_Rx_Serial(rx_din),					// serial input from PC
