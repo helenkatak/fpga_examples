@@ -10,8 +10,6 @@ module wr_mode #(parameter WR_CLK_NO=100, NO_ROW=256, NO_COL=128)
 logic count_end;
 logic [$clog2(WR_CLK_NO)-1:0] count;
 
-
-
 assign count_end = (count==WR_CLK_NO);
 
 always @(posedge clk)
@@ -32,6 +30,7 @@ always @(posedge clk)
 		wr_col 	<= (wr_en) ? wr_mode_col_row[$clog2(NO_ROW)+$clog2(NO_COL)-1:$clog2(NO_ROW)] : 0;
 		wr_row 	<= (wr_en) ? wr_mode_col_row[$clog2(NO_ROW)-1:0] : 0;
 	end
+
 initial begin
 	count = 0;
 	wr_mode = 0;
