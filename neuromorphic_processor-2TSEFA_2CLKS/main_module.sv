@@ -8,7 +8,7 @@ module main_module
 	 output logic 	[TS_WID+$clog2(NEURON_NO)-1:0] spiking_n_addr,
 	 output logic 	sp_out);
 
-localparam NEURON_NO = 256;
+localparam NEURON_NO = 512*6;
 localparam TS_WID = 12;
 localparam T_FIX_WID = 16;
 // localparam FIFO_MEM_NO = 8;

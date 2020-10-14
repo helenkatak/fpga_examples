@@ -8,7 +8,7 @@ module main_module
 	 output logic 	[TS_WID+$clog2(NEURON_NO)-1:0] spiking_n_addr,
 	 output logic 	sp_out);
 
-localparam NEURON_NO = 512;
+localparam NEURON_NO = 256;
 localparam TS_WID = 12;
 localparam T_FIX_WID = 16;
 // localparam FIFO_MEM_NO = 8;
@@ -52,6 +52,20 @@ logic [TS_WID+$clog2(NEURON_NO)-1:0] spiking_n_addr;// Input data for FIFO modul
 
 logic [NEURON_NO-1:0] spike_in_ram;							
 logic input_spike;
+logic [$clog2(NEURON_NO)-1:0] neuron_addr;
+logic [1:0] tsefa_cnt;
+
+always @(posedge clk)
+	if (reset) neuron_addr <= NEURON_NO-1;
+	else if (ext_req) neuron_addr <= neuron_addr;
+	else if (~dt_tick) neuron_addr <= (neuron_addr==NEURON_NO-1) ? neuron_addr : ((tsefa_cnt==3) ? neuron_addr+1 : neuron_addr);
+	else neuron_addr <= neuron_addr+1;
+
+always @(posedge  clk)
+	if (reset) tsefa_cnt <= 0;
+	else if (dt_tick | tsefa_cnt == 3) tsefa_cnt <= 1;
+	else tsefa_cnt <= tsefa_cnt + 1;
+
 assign input_spike = (en) & spike_in_ram[n_addr]; 	// Spike input 
 
 // struct {logic [TS_WID+$clog2(NEURON_NO)-1:0] dout;		
@@ -106,7 +120,6 @@ neuron_module #(.NEURON_NO(NEURON_NO), .TS_WID(TS_WID)) neuron_module (
 	.clk(clk),
 	.reset(reset),
 	.ext_req(ext_req),
-	.ram_sel(ram_sel),
 	.ext_rd_addr(ext_rd_addr),
 	.ext_wr_addr(ext_wr_addr),
 	.ext_din(ext_din),
@@ -115,18 +128,20 @@ neuron_module #(.NEURON_NO(NEURON_NO), .TS_WID(TS_WID)) neuron_module (
 	.input_spike(input_spike),
 	.weight_const(weight_const),
 	.dt_ts(dt_ts),
-	.n_addr(n_addr),
+	.neuron_addr(neuron_addr),
+	.tsefa_cnt(tsefa_cnt),
 	.ts_sp_addr(spiking_n_addr),
 	.sp_out(sp_out));
 
 initial begin
-	for (int i=0; i<NEURON_NO; i++) begin // spike_in_ram: just for simulation. It need to be replaced
+	for (int i=0; i<NEURON_NO*3; i++) begin // spike_in_ram: just for simulation. It need to be replaced
 		if (i==0) spike_in_ram[i] = 1;
-		else if (i==5) spike_in_ram[i] = 1;
-		else if (i==255) spike_in_ram[i] = 1;
+		else if (i==256*3-2) spike_in_ram[i] = 1;
 		else spike_in_ram[i] = 0;
 	end
 	ext_req = '0;
+	neuron_addr = NEURON_NO-1;
+	tsefa_cnt 	= '0;
 	weight_const = 1092;
 	ram_sel = '0;
 	we = 0;

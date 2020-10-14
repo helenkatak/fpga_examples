@@ -27,6 +27,12 @@ wr_mode #(.WR_CLK_NO(WR_CLK_NO), .NO_ROW(NO_ROW), .NO_COL(NO_COL))
 	.wr_sig(wr_sig), .wr_mode(wr_md), 
 	.wr_col(wr_col), .wr_row(wr_row));					// module output 
 
+rd_mode #()
+	rd_mode_module (
+	.clk(clk), .reset(reset),
+	.rd_en()
+
+		);
 initial begin
 	wr_en = 0;
 	wr_mode_col_row = 0;

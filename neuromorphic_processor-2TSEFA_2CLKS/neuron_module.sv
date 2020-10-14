@@ -1,5 +1,5 @@
 `timescale 1ns / 1ps
-module neuron_module #(parameter NEURON_NO=2**8, TS_WID=12)
+module neuron_module #(parameter NEURON_NO=1, TS_WID=12)
 	(input logic 	sys_en, clk1, clk2, 
 	 input logic 	reset, 
 	 input logic 	[1:0] ext_req,
