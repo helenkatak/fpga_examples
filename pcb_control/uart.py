@@ -16,7 +16,7 @@ while True:
     else: 
         while True: 
             ser.open()
-            time.sleep(1)
+            time.sleep(0.1)
             #data_col_ps = (input('Parallel or single cell addressing (p or s): ')) 
             data_col_ps = 's'
             if (data_col_ps == 'p'):

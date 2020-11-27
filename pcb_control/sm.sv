@@ -72,8 +72,20 @@ always @(posedge clk1)
 			SFT_REG: begin
 				piso_en     <= 1;
 				piso_cnt    <= piso_cnt + 1;		
-				par_col_in  <= (col<9) ? 8-(col%8) : ((col<24) ? 7-(col%8) : 6-(col%8));
-				par_row_in  <= (row<9) ? 8-(row%8) : ((row<24) ? 7-(row%8) : 6-(row%8));
+				if (col<9)  	 par_col_in <= (col==1) ? 4 : ((col==5) ? 0 : 8-col%8+1);
+				else if (col<16) par_col_in <= (col==9) ? 3 : ((col==13) ? 0 : 8-col%8);
+				else if (col<24) par_col_in <= (col==16) ? 4 : ((col==20) ? 0 : 8-col%8);
+				else  			 par_col_in <= (col==24) ? 3 : ((col==20) ? 0 : ((col>27) ? 8-col%8-2 : 8-col%8-1));
+				 
+				if (row<5)  	 par_row_in <= (row==1) ? 3 : ((row==2) ? 0 : ((row==3) ? 1 : 2));
+				else if (row<9)  par_row_in <= (row==5) ? 7 : ((row==6) ? 4 : ((row==7) ? 5 : 6));
+				else if (row<13) par_row_in <= (row==9) ? 3 : ((row==10) ? 0 : ((row==11) ? 1 : 2));
+				else if (row<16) par_row_in <= (row==13) ? 6 : ((row==14) ? 4 : 5);
+				else if (row<20) par_row_in <= (row==16) ? 3 : ((row==17) ? 0 : ((row==18) ? 1 : 2));
+				else if (row<24) par_row_in <= (row==20) ? 7 : ((row==21) ? 4 : ((row==22) ? 5 : 6));
+				else if (row<28) par_row_in <= (row==24) ? 3 : ((row==25) ? 0 : ((row==26) ? 1 : 2));
+				else  			 par_row_in <= (row==28) ? 6 : ((row==29) ? 4 : 5);
+
 				State_m	   	<= (piso_cnt==7) ? LATCH_OUT : State_m;
 			end
 			LATCH_OUT: begin
