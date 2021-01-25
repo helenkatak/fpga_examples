@@ -2,6 +2,7 @@
 module uart_led_contol_by_sw
 	(input logic 	usrclk_n, usrclk_p,
 	 input logic 	[7:0] slide_sw,
+	 input logic 	rx_data_in,
  	 output logic 	tx_data_out, 
 	 output logic 	[7:0] led);
 
