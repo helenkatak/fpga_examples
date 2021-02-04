@@ -1,7 +1,8 @@
 `timescale 1ns / 1ps
-module sdi_gen_2byte #(parameter CLK_SCK_SCAL=40, OP_CYC=8, SER_ADDR = 16)
+module sdi_gen_2byte #(parameter CLK_SCK_SCAL=40,OP_CYC=8,SER_ADDR=128,MEM_TOT=32768)
 	(input logic clk, reset, csb,
 	 input logic [OP_CYC-1:0] inst, status, addr1, addr2, din1, dummy,
+	 input logic [$clog2(MEM_TOT/SER_ADDR)-1:0] row_cnt,
 	 output logic data_out,
 	 output logic [$clog2(OP_CYC*(3+SER_ADDR))-1:0] sck_cnt);
 
@@ -25,17 +26,26 @@ always @(posedge clk)
 always @(posedge clk)
 	if (reset) sck_cnt <= 0;
 	else if (~csb) begin
-		if (inst==11) sck_cnt <= (cnt==CLK_SCK_SCAL/10-1) ? sck_cnt+1 : sck_cnt;
+		if (inst==11 & row_cnt==0) sck_cnt <= (cnt==CLK_SCK_SCAL/10-1) ? sck_cnt+1 : sck_cnt;
+		else if (inst==11 & row_cnt==1) begin
+			if (sck_cnt==(4+SER_ADDR)*8-1) sck_cnt <= (cnt==CLK_SCK_SCAL/10-1) ? 0 : sck_cnt;
+			else sck_cnt <= (cnt==CLK_SCK_SCAL/10-1) ? sck_cnt+1 : sck_cnt;
+		end
+		else if (inst==11 & row_cnt>1) begin
+			if (sck_cnt==(SER_ADDR)*8-1) sck_cnt <= (cnt==CLK_SCK_SCAL/10-1) ? 0: sck_cnt;
+			else sck_cnt <= (cnt==CLK_SCK_SCAL/10-1) ? sck_cnt+1 : sck_cnt;
+		end
 		else if (inst_g1|inst_g2|inst_g3|inst_rd|inst_wr) sck_cnt <= (cnt==CLK_SCK_SCAL-1) ? sck_cnt+1 : sck_cnt;
+		else sck_cnt <= 0;
 	end
-	else if (csb) sck_cnt <= 0;
+	else sck_cnt <= 0;
 
 logic dout_inst, dout_status_addr1, dout_addr2, dout_din1_dummy;
 
-assign dout_inst = csb ? 0 : (sck_cnt<8 ? inst[OP_CYC-1-sck_cnt] : 0);
-assign dout_status_addr1 = (csb|inst_g1) ? 0 : (sck_cnt>7&sck_cnt<16 ? (inst_g3 ? status[OP_CYC*2-1-sck_cnt] : addr1[OP_CYC*2-1-sck_cnt]) : 0);
-assign dout_addr2 = (csb|inst_g1|inst_g2|inst_g3) ? 0 : (sck_cnt>15&sck_cnt<24 ? addr2[OP_CYC*3-1-sck_cnt] : 0);
-assign dout_din1_dummy = csb ? 0 : (sck_cnt>23&sck_cnt<32 ? (inst_wr ? din1[OP_CYC*4-1-sck_cnt] : (inst==11 ? dummy[OP_CYC*4-1-sck_cnt] : 0)) : 0);
+assign dout_inst = (row_cnt!=0) ? 0 :((csb) ? 0 : (sck_cnt<8 ? inst[OP_CYC-1-sck_cnt] : 0));
+assign dout_status_addr1 = (row_cnt!=0) ? 0 :((csb|inst_g1) ? 0 : (sck_cnt>7&sck_cnt<16 ? (inst_g3 ? status[OP_CYC*2-1-sck_cnt] : addr1[OP_CYC*2-1-sck_cnt]) : 0));
+assign dout_addr2 = (row_cnt!=0) ? 0 :((inst_g1|inst_g2|inst_g3) ? 0 : (sck_cnt>15&sck_cnt<24 ? addr2[OP_CYC*3-1-sck_cnt] : 0));
+assign dout_din1_dummy = (row_cnt!=0) ? 0 :((csb) ? 0 : (sck_cnt>23&sck_cnt<32 ? (inst_wr ? din1[OP_CYC*4-1-sck_cnt] : (inst==11 ? dummy[OP_CYC*4-1-sck_cnt] : 0)) : 0));
 assign data_out = dout_inst|dout_status_addr1|dout_addr2|dout_din1_dummy;
 
 initial begin

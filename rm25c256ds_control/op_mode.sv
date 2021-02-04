@@ -21,6 +21,7 @@ assign inst_rd = inst==3;
 assign inst_wr = inst==2;
 assign inst_norm = inst_g1|inst_g2|inst_g3|inst_rd|inst_wr;
 assign inst_frd = inst==11;
+assign inst_pers = inst==66;
 
 assign rx_dout_norm = rx_dout_g1|rx_dout==5|rx_dout==1|rx_dout==49|rx_dout==3|rx_dout==2;
 

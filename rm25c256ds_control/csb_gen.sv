@@ -1,9 +1,10 @@
 `timescale 1ns / 1ps
-module csb_gen #(parameter CLK_SCK_SCAL=40, OP_CYC=8, SER_LEN=8, SER_ADDR=16) 
+module csb_gen #(parameter CLK_SCK_SCAL=10, OP_CYC=8, SER_LEN=8, SER_ADDR=128, MEM_TOT=128) 
 	(input logic clk, reset, sysen, 
 	 input logic [1:0] ser_rd,
 	 input logic [SER_LEN-1:0] inst,
-	 output logic csb_pre, csb);
+	 output logic csb_pre, csb,
+	 output logic [$clog2(MEM_TOT/SER_ADDR)-1:0] row_cnt);
 
 localparam OP_PER = CLK_SCK_SCAL*OP_CYC;
 localparam CSB_MAX = OP_PER*(3+SER_ADDR)-1;
@@ -24,13 +25,19 @@ always @(posedge clk)
 	if (reset) ini_csb_cnt <= OP_PER*3-1;
 	else if (sysen) ini_csb_cnt <= 0;
 	else if (inst_g1|inst_g2|inst_g3) ini_csb_cnt <= (ini_csb_cnt==INI_CSB_MAX) ? INI_CSB_MAX : ini_csb_cnt+1;
-	else if (inst==11) ini_csb_cnt <= (ini_csb_cnt==(INI_CSB_MAX+1)/10-1|ini_csb_cnt==INI_CSB_MAX) ? INI_CSB_MAX : ini_csb_cnt+1;
+	else if (inst==11) ini_csb_cnt <= (ini_csb_cnt==(OP_PER*4)/10-1|ini_csb_cnt==INI_CSB_MAX) ? INI_CSB_MAX : ini_csb_cnt+1;
 	else ini_csb_cnt<= (ini_csb_cnt==OP_PER*3-1|ini_csb_cnt==INI_CSB_MAX) ? INI_CSB_MAX : ini_csb_cnt+1;
+
+always @(posedge clk)
+	if (reset) row_cnt <= 0;
+	else if (inst==11) row_cnt <= (d_csb_cnt==D_CSB_MAX/10-1) ? row_cnt+1 : row_cnt ;
+	else if (csb) row_cnt <= 0;
 
 always @(posedge clk)
 	if (reset) d_csb_cnt <= D_CSB_MAX;
 	else if (inst==11) begin
-		if (ini_csb_cnt==(INI_CSB_MAX+1)/10-1) d_csb_cnt <= 0;
+		if (ini_csb_cnt==(OP_PER*4)/10-1) d_csb_cnt <= 0;
+		else if (row_cnt!=0) d_csb_cnt <= (d_csb_cnt==D_CSB_MAX/10|d_csb_cnt==D_CSB_MAX) ? 0 : d_csb_cnt+1;
 		else d_csb_cnt <= (d_csb_cnt==D_CSB_MAX/10|d_csb_cnt==D_CSB_MAX) ? D_CSB_MAX : d_csb_cnt+1;
 	end
 	else if (inst==3|inst==2) begin
@@ -45,7 +52,7 @@ always @(posedge clk)
 	else if (inst_g1) csb_pre <= (ini_csb_cnt==OP_PER-1) ? 1 : csb_pre;
 	else if (inst_g2|inst_g3) csb_pre <= (ini_csb_cnt==OP_PER*2-1) ? 1 : csb_pre;
 	else if (inst==3|inst==2) csb_pre <= (ini_csb_cnt<INI_CSB_MAX) ? csb_pre : ((d_csb_cnt==D_CSB_MAX) ? 1 : csb_pre);
-	else if (inst==11) csb_pre <= (ini_csb_cnt<(INI_CSB_MAX+1)/10-1) ? csb_pre : ((d_csb_cnt==(D_CSB_MAX+1)/10-1) ? 1 : csb_pre);
+	else if (inst==11) csb_pre <= (ini_csb_cnt<(INI_CSB_MAX+1)/10-1) ? csb_pre : ((d_csb_cnt==(D_CSB_MAX+1)/10-1&row_cnt==0) ? 1 : csb_pre);
 	else csb_pre <= csb_pre;
 
 always @(posedge clk) begin
@@ -61,6 +68,7 @@ assign csb = csb_5d & csb_pre;
 initial begin
 	ini_csb_cnt = INI_CSB_MAX;
 	d_csb_cnt = D_CSB_MAX;
+	row_cnt = 0;
 	csb_pre = 1;
 	csb_d 	= 1;
 	csb_2d 	= 1;
